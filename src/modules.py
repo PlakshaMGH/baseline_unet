@@ -26,6 +26,8 @@ class InstrumentsUNetModel(pl.LightningModule):
         for param in self.model.encoder.parameters():
             param.requires_grad = False
 
+        self.test_best_avg_iou  =  0.0
+
 
     
     def forward(self, image):
@@ -81,6 +83,10 @@ class InstrumentsUNetModel(pl.LightningModule):
 
         self.log_dict(metrics, prog_bar=True)
 
+        if stage == "test":
+            if per_image_iou > self.test_best_avg_iou:
+                self.test_best_avg_iou = per_image_iou
+
     def training_step(self, batch, batch_idx):
         train_loss_info = self.shared_step(batch, "train")
         # append the metics of each step to the
@@ -91,6 +97,10 @@ class InstrumentsUNetModel(pl.LightningModule):
         self.shared_epoch_end(self.training_step_outputs, "train")
         # empty set output list
         self.training_step_outputs.clear()
+        return
+    
+    def on_train_end(self):
+        self.log(f"test/best_avg_iou", self.test_best_avg_iou)
         return
 
     def validation_step(self, batch, batch_idx):

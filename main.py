@@ -1,5 +1,6 @@
 import torch
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.utils.data import DataLoader
 from pathlib import Path
 import typer
@@ -66,6 +67,16 @@ def main(
     wandb.run.notes = f"tran-set:{train_patients}"  # Add this line here
     wandb_logger = WandbLogger(log_model=True)
 
+    # checkpoint callback
+    checkpoint_callback = ModelCheckpoint(
+        monitor="test_mean_image_iou",
+        mode="max",
+        save_weights_only=True,
+        save_top_k=1,
+        dirpath="saves",
+        filename="best_model",
+    )
+
     # Initialize the model
     model = InstrumentsUNetModel(
         encoder_name=encoder_name,
@@ -87,7 +98,7 @@ def main(
         val_dataloaders=test_loader,
     )
 
-    wandb.save(model.checkpoint_callback.best_model_path)
+    wandb.save(checkpoint_callback.best_model_path)
     wandb.finish()
 
 if __name__ == "__main__":
