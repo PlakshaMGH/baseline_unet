@@ -44,11 +44,13 @@ def main(
 
     # Data directory and test patients are set as constants
     data_dir = Path("../rll_data")
-    test_patients = [4,10,11,13]
+    test_patients = [4, 10, 11, 13]
 
     # Initialize datasets
-    train_dataset = RLLPABinaryDataset(data_dir, train_patients_list,target_size=(736,896))
-    test_dataset = RLLPABinaryDataset(data_dir, test_patients, target_size=(736,896))
+    train_dataset = RLLPABinaryDataset(
+        data_dir, train_patients_list, target_size=(736, 896)
+    )
+    test_dataset = RLLPABinaryDataset(data_dir, test_patients, target_size=(736, 896))
 
     print(f"Train dataset size: {len(train_dataset)}")
     print(f"Test dataset size: {len(test_dataset)}")
@@ -118,12 +120,10 @@ def main(
             model=best_model.cuda(),
             video_name=video_name,
             video_frames_dir=data_dir / "frames" / video_name,
-            video_masks_dir=data_dir
-            / "masks"
-            / video_name,
+            video_masks_dir=data_dir / "masks" / video_name,
         )
-        
-        wandb.log({f"{video_name}": wandb.Video(video_path,format="mp4")})
+
+        wandb.log({f"{video_name}": wandb.Video(video_path, format="mp4")})
 
     wandb.finish()
 

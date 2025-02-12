@@ -86,13 +86,19 @@ def create_inference_video(
     save_dir.mkdir(parents=True, exist_ok=True)
     video_path = save_dir / f"{video_name}.mp4"
 
-    test_dataset = VideoReader(video_frames_dir, video_masks_dir,target_size=(736,896))
+    test_dataset = VideoReader(
+        video_frames_dir, video_masks_dir, target_size=(736, 896)
+    )
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, num_workers=4)
 
     model.eval()
     video_frames = {}
     with torch.inference_mode():
-        for idx, (frame, mask) in tqdm(enumerate(test_loader),total=len(test_loader), desc=f"Inference on {video_name}"):
+        for idx, (frame, mask) in tqdm(
+            enumerate(test_loader),
+            total=len(test_loader),
+            desc=f"Inference on {video_name}",
+        ):
             frame = frame.to("cuda")
             mask = mask
             pred_mask = model(frame)
