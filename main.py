@@ -27,7 +27,7 @@ def parse_train_patients(train_patients: str):
 @app.command()
 def main(
     train_patients: str = "1",  # Default train patients (modifiable via CLI, as comma-separated string)
-    wandb_project: str = "DataVar_UNet_E17_Bin",  # Default WandB project name
+    wandb_project: str = "DataVar_UNet_RLL_PA_Bin",  # Default WandB project name
     wandb_run_name: str | None = None,
 ):
     """
@@ -44,7 +44,7 @@ def main(
 
     # Data directory and test patients are set as constants
     data_dir = Path("../data")
-    test_patients = [9, 10]
+    test_patients = [4,10,11,13]
 
     # Initialize datasets
     train_dataset = Endovis17BinaryDataset(data_dir, train_patients_list)
@@ -88,7 +88,7 @@ def main(
     )
 
     trainer = pl.Trainer(
-        max_epochs=1,
+        max_epochs=epochs,
         log_every_n_steps=1,
         callbacks=[checkpoint_callback],
         logger=wandb_logger,
@@ -112,7 +112,7 @@ def main(
     )
 
     # create inference video
-    test_videos = ["instrument_dataset_09", "instrument_dataset_10"]
+    test_videos = [f"instrument_dataset_{p:02d}" for p in test_patients]
     for video_name in test_videos:
         video_path = create_inference_video(
             model=best_model.cuda(),

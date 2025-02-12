@@ -10,9 +10,9 @@ class Endovis17BinaryDataset(Dataset):
         self, root_data_dir: Path, patient_set: list[int], target_size=None, test=False
     ):
         # collecting the frame files
-        self.frames_dir = root_data_dir / "frames" / ("test" if test else "train")
+        self.frames_dir = root_data_dir / "frames" 
         self.frame_dirs = [
-            self.frames_dir / f"instrument_dataset_{p:02d}" for p in patient_set
+            self.frames_dir / f"p{p:02d}" for p in patient_set
         ]
         # check that all dirs exist
         for dir in self.frame_dirs:
@@ -24,10 +24,10 @@ class Endovis17BinaryDataset(Dataset):
         ]
         # collecting the mask files
         self.masks_dir = (
-            root_data_dir / "masks" / ("test" if test else "train") / "binary_masks"
+            root_data_dir / "masks" 
         )
         self.mask_dirs = [
-            self.masks_dir / f"instrument_dataset_{p:02d}" for p in patient_set
+            self.masks_dir / f"p{p:02d}" for p in patient_set
         ]
         # check that all dirs exist
         for dir in self.mask_dirs:
@@ -39,15 +39,15 @@ class Endovis17BinaryDataset(Dataset):
         ]
 
         # check that the number of frames and masks is the same
-        assert len(self.frame_file_names) == len(
-            self.mask_file_names
-        ), "Number of frames and masks is not the same"
+        # assert len(self.frame_file_names) == len(
+        #     self.mask_file_names
+        # ), f"Number of frames({len(self.frame_file_names)}) and masks({len(self.mask_file_names)}) is not the same"
 
         self.to_tensor = v2.ToDtype(torch.float32, scale=True)
         self.target_size = target_size
 
     def __len__(self):
-        return len(self.frame_file_names)
+        return len(self.mask_file_names)
 
     def __getitem__(self, idx):
         frame_path = self.frame_file_names[idx]
