@@ -6,7 +6,7 @@ from pathlib import Path
 import typer
 import wandb
 from pytorch_lightning.loggers import WandbLogger
-from src.data import Endovis17BinaryDataset
+from src.data import RLLPABinaryDataset
 from src.modules import InstrumentsUNetModel
 from src.inference import create_inference_video
 
@@ -43,12 +43,12 @@ def main(
     train_patients_list = parse_train_patients(train_patients)
 
     # Data directory and test patients are set as constants
-    data_dir = Path("../data")
+    data_dir = Path("../rll_data")
     test_patients = [4,10,11,13]
 
     # Initialize datasets
-    train_dataset = Endovis17BinaryDataset(data_dir, train_patients_list)
-    test_dataset = Endovis17BinaryDataset(data_dir, test_patients, test=True)
+    train_dataset = RLLPABinaryDataset(data_dir, train_patients_list,target_size=(736,896))
+    test_dataset = RLLPABinaryDataset(data_dir, test_patients, target_size=(736,896))
 
     print(f"Train dataset size: {len(train_dataset)}")
     print(f"Test dataset size: {len(test_dataset)}")
@@ -112,16 +112,14 @@ def main(
     )
 
     # create inference video
-    test_videos = [f"instrument_dataset_{p:02d}" for p in test_patients]
+    test_videos = [f"p{p:02d}" for p in test_patients]
     for video_name in test_videos:
         video_path = create_inference_video(
             model=best_model.cuda(),
             video_name=video_name,
-            video_frames_dir=data_dir / "frames" / "test" / video_name,
+            video_frames_dir=data_dir / "frames" / video_name,
             video_masks_dir=data_dir
             / "masks"
-            / "test"
-            / "binary_masks"
             / video_name,
         )
         

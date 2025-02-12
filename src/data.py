@@ -5,9 +5,9 @@ from torch.utils.data import Dataset
 from pathlib import Path
 
 
-class Endovis17BinaryDataset(Dataset):
+class RLLPABinaryDataset(Dataset):
     def __init__(
-        self, root_data_dir: Path, patient_set: list[int], target_size=None, test=False
+        self, root_data_dir: Path, patient_set: list[int], target_size=None, 
     ):
         # collecting the frame files
         self.frames_dir = root_data_dir / "frames" 
@@ -71,6 +71,7 @@ class VideoReader(Dataset):
         self,
         frames_dir: Path,
         masks_dir: Path,
+        target_size=None,
     ):
         # collecting the frame files
         # check that dir exist
@@ -80,15 +81,12 @@ class VideoReader(Dataset):
         # check that dir exist
         assert masks_dir.exists(), f"Directory {dir} does not exist"
         self.mask_file_names = [file.absolute() for file in masks_dir.iterdir()]
-        # check that the number of frames and masks is the same
-        assert len(self.frame_file_names) == len(
-            self.mask_file_names
-        ), "Number of frames and masks is not the same"
 
         self.to_tensor = v2.ToDtype(torch.float32, scale=True)
+        self.target_size = target_size
 
     def __len__(self):
-        return len(self.frame_file_names)
+        return len(self.mask_file_names)
 
     def __getitem__(self, idx):
         frame_path = self.frame_file_names[idx]
@@ -97,4 +95,11 @@ class VideoReader(Dataset):
         mask = torchvision.io.read_image(mask_path)
         frame = self.to_tensor(frame)
         mask = mask.to(torch.float32)
+        if self.target_size:
+            frame = torch.nn.functional.interpolate(
+                frame.unsqueeze(dim=0), size=self.target_size, mode="bilinear"
+            ).squeeze(dim=0)
+            mask = torch.nn.functional.interpolate(
+                mask.unsqueeze(dim=0), size=self.target_size, mode="nearest"
+            ).squeeze(dim=0)
         return frame, mask
