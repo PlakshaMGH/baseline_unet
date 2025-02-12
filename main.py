@@ -69,12 +69,12 @@ def main(
 
     # checkpoint callback
     checkpoint_callback = ModelCheckpoint(
-        monitor="test_mean_image_iou",
+        monitor="test/avg_iou",
         mode="max",
         save_weights_only=True,
         save_top_k=1,
         dirpath="saves",
-        filename="best_model",
+        filename="best-model-{epoch:02d}-{test_avg_iou:.2f}",
     )
 
     # Initialize the model
@@ -86,9 +86,10 @@ def main(
 
     # Initialize the PyTorch Lightning Trainer with the WandB logger
     trainer = pl.Trainer(
-        max_epochs=epochs,
+        max_epochs=1,
         log_every_n_steps=1,
-        logger=wandb_logger,  # Adding the WandB logger to the trainer
+        callbacks=[checkpoint_callback],
+        #logger=wandb_logger,  # Adding the WandB logger to the trainer
     )
 
     # Start training
@@ -98,6 +99,7 @@ def main(
         val_dataloaders=test_loader,
     )
 
+    print("Best model path: ", checkpoint_callback.best_model_path)
     wandb.save(checkpoint_callback.best_model_path)
     wandb.finish()
 

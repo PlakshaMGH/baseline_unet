@@ -43,6 +43,12 @@ class InstrumentsUNetModel(pl.LightningModule):
         x = (image - self.mean) / self.std
         return self.model(x)
 
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=2e-4)
+        return {
+            "optimizer": optimizer,
+        }
+
     def shared_step(self, batch, stage):
         image = batch[0]
         mask = batch[1]
@@ -71,6 +77,38 @@ class InstrumentsUNetModel(pl.LightningModule):
             "iou": iou,
         }
 
+    def training_step(self, batch, batch_idx):
+        train_loss_info = self.shared_step(batch, "train")
+        self.training_step_outputs.append(train_loss_info)
+
+        self.log_dict(
+            {
+                f"total_loss": train_loss_info["total_loss"],
+                f"iou": train_loss_info["iou"],
+            },
+            prog_bar=True,
+            logger=False,
+        )
+
+        return train_loss_info["total_loss"]
+
+    def validation_step(self, batch, batch_idx):
+        valid_loss_info = self.shared_step(batch, "test")
+        self.validation_step_outputs.append(valid_loss_info)
+        self.val_mean_iou.update(valid_loss_info["iou"])
+        self.log_dict(
+            {
+                f"total_loss": valid_loss_info["total_loss"],
+                f"test/avg_iou": self.val_mean_iou.compute(),
+            },
+            prog_bar=True,
+        )
+        return valid_loss_info
+
+    def on_validation_epoch_start(self):
+        # reset the mean iou metric
+        self.val_mean_iou.reset()
+
     def shared_epoch_end(self, outputs, stage):
         # compute the average of the metrics
         avg_total_loss = torch.stack([x["total_loss"] for x in outputs]).mean()
@@ -90,54 +128,19 @@ class InstrumentsUNetModel(pl.LightningModule):
         if stage == "test":
             self.log("test/avg_iou", self.val_mean_iou.compute())
 
-    def training_step(self, batch, batch_idx):
-        train_loss_info = self.shared_step(batch, "train")
-        self.training_step_outputs.append(train_loss_info)
-
-        self.log_dict(
-            {
-                f"total_loss": train_loss_info["total_loss"],
-                f"iou": train_loss_info["iou"],
-            },
-            prog_bar=True,
-            logger=False,
-        )
-
-        return train_loss_info["total_loss"]
 
     def on_train_epoch_end(self):
         self.shared_epoch_end(self.training_step_outputs, "train")
         self.training_step_outputs.clear()
         return
 
-    def on_train_end(self):
-        self.loggers[0].log_metrics({"test/best_avg_iou": self.test_best_avg_iou})
-        return
 
-    def on_validation_epoch_start(self):
-        # reset the mean iou metric
-        self.val_mean_iou.reset()
-
-    def validation_step(self, batch, batch_idx):
-        valid_loss_info = self.shared_step(batch, "test")
-        self.validation_step_outputs.append(valid_loss_info)
-        self.val_mean_iou.update(valid_loss_info["iou"])
-        self.log_dict(
-            {
-                f"total_loss": valid_loss_info["total_loss"],
-                f"test/avg_iou": self.val_mean_iou.compute(),
-            },
-            prog_bar=True,
-        )
-        return valid_loss_info
 
     def on_validation_epoch_end(self):
         self.shared_epoch_end(self.validation_step_outputs, "test")
         self.validation_step_outputs.clear()
         return
 
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=2e-4)
-        return {
-            "optimizer": optimizer,
-        }
+    def on_train_end(self):
+        self.loggers[0].log_metrics({"test/best_avg_iou": self.test_best_avg_iou})
+        return
