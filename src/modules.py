@@ -71,6 +71,8 @@ class InstrumentsUNetModel(pl.LightningModule):
                 f"{stage}/ce_loss": ce_loss,
                 f"{stage}/iou": iou,
             },
+            prog_bar=False,
+            logger=True,
         )
 
         return {
@@ -104,10 +106,10 @@ class InstrumentsUNetModel(pl.LightningModule):
                 f"total_loss": valid_loss_info["total_loss"],
                 f"dice_loss": valid_loss_info["dice_loss"],
                 f"ce_loss": valid_loss_info["dice_loss"],
-                f"test/avg_iou": self.val_mean_iou.compute(),
             },
-            prog_bar=True,
+            prog_bar=False,
         )
+        self.log("test/avg_iou", self.val_mean_iou.compute(),prog_bar=True,logger=True)
         return valid_loss_info
 
     def on_validation_epoch_start(self):
