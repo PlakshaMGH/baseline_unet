@@ -84,12 +84,14 @@ class InstrumentsUNetModel(pl.LightningModule):
                 f"{stage}/avg_dice_loss": avg_dice_loss,
                 f"{stage}/avg_ce_loss": avg_ce_loss,
                 f"{stage}/avg_iou": avg_iou,
-            }
+            },
         )
+
+        if stage == "test":
+            self.log("test/avg_iou", self.val_mean_iou.compute())
 
     def training_step(self, batch, batch_idx):
         train_loss_info = self.shared_step(batch, "train")
-        # append the metics of each step to the
         self.training_step_outputs.append(train_loss_info)
 
         self.log_dict(
@@ -98,13 +100,13 @@ class InstrumentsUNetModel(pl.LightningModule):
                 f"iou": train_loss_info["iou"],
             },
             prog_bar=True,
+            logger=False,
         )
 
         return train_loss_info["total_loss"]
 
     def on_train_epoch_end(self):
         self.shared_epoch_end(self.training_step_outputs, "train")
-        # empty set output list
         self.training_step_outputs.clear()
         return
 
@@ -112,9 +114,21 @@ class InstrumentsUNetModel(pl.LightningModule):
         self.loggers[0].log_metrics({"test/best_avg_iou": self.test_best_avg_iou})
         return
 
+    def on_validation_epoch_start(self):
+        # reset the mean iou metric
+        self.val_mean_iou.reset()
+
     def validation_step(self, batch, batch_idx):
         valid_loss_info = self.shared_step(batch, "test")
         self.validation_step_outputs.append(valid_loss_info)
+        self.val_mean_iou.update(valid_loss_info["iou"])
+        self.log_dict(
+            {
+                f"total_loss": valid_loss_info["total_loss"],
+                f"test/avg_iou": self.val_mean_iou.compute(),
+            },
+            prog_bar=True,
+        )
         return valid_loss_info
 
     def on_validation_epoch_end(self):
