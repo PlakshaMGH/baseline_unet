@@ -78,7 +78,6 @@ class InstrumentsUNetModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         train_loss_info = self.shared_step(batch, "train")
-        self.training_step_outputs.append(train_loss_info)
 
         self.log_dict(
             {
