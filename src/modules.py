@@ -1,11 +1,15 @@
 import torch
 import pytorch_lightning as pl
 import segmentation_models_pytorch as smp
+from torchmetrics.classification import BinaryJaccardIndex
+
 
 class InstrumentsUNetModel(pl.LightningModule):
     def __init__(self, encoder_name, in_channels, out_classes, **kwargs):
         super().__init__()
-        self.model = smp.Unet(encoder_name,5,"imagenet", in_channels, classes=out_classes, **kwargs)
+        self.model = smp.Unet(
+            encoder_name, 5, "imagenet", in_channels, classes=out_classes, **kwargs
+        )
         self.loss = torch.nn.BCEWithLogitsLoss()
 
         # preprocessing parameteres for image
@@ -14,7 +18,9 @@ class InstrumentsUNetModel(pl.LightningModule):
         self.register_buffer("mean", torch.tensor(params["mean"]).view(1, 3, 1, 1))
 
         # for image segmentation dice loss could be the best first choice
-        self.dice_loss_fn = smp.losses.DiceLoss(smp.losses.BINARY_MODE, from_logits=True) 
+        self.dice_loss_fn = smp.losses.DiceLoss(
+            smp.losses.BINARY_MODE, from_logits=True
+        )
         self.ce_loss_fn = smp.losses.SoftBCEWithLogitsLoss()
 
         # initialize step metics
@@ -22,14 +28,14 @@ class InstrumentsUNetModel(pl.LightningModule):
         self.validation_step_outputs = []
         self.test_step_outputs = []
 
+        self.iou_metric = BinaryJaccardIndex()
+
         # freeze the encoder weights
         for param in self.model.encoder.parameters():
             param.requires_grad = False
 
-        self.test_best_avg_iou  =  0.0
+        self.test_best_avg_iou = 0.0
 
-
-    
     def forward(self, image):
         # normalize the image
         x = (image - self.mean) / self.std
@@ -44,7 +50,7 @@ class InstrumentsUNetModel(pl.LightningModule):
 
         logits_mask = self.forward(image)
 
-        dice_loss =self.dice_loss_fn(logits_mask, mask) 
+        dice_loss = self.dice_loss_fn(logits_mask, mask)
         ce_loss = self.ce_loss_fn(logits_mask, mask)
         loss = dice_loss + ce_loss
 
@@ -54,51 +60,45 @@ class InstrumentsUNetModel(pl.LightningModule):
         prob_mask = logits_mask.sigmoid()
         pred_mask = (prob_mask > 0.5).float()
 
-        tp, fp, fn, tn = smp.metrics.get_stats(
-            pred_mask.long(), mask.long(), mode="binary"
-        )
+        iou = self.iou_metric(pred_mask.int(), mask)
+
+        self.log_dict({f"{stage}/loss": loss, f"{stage}/iou": iou}, prog_bar=True)
+
         return {
-            "loss": loss,
+            "total_loss": loss,
             "dice_loss": dice_loss,
             "ce_loss": ce_loss,
-            "tp": tp,
-            "fp": fp,
-            "fn": fn,
-            "tn": tn,
+            "iou": iou,
         }
+
     def shared_epoch_end(self, outputs, stage):
-        # aggregate step metics
-        tp = torch.cat([x["tp"] for x in outputs])
-        fp = torch.cat([x["fp"] for x in outputs])
-        fn = torch.cat([x["fn"] for x in outputs])
-        tn = torch.cat([x["tn"] for x in outputs])
+        # compute the average of the metrics
+        avg_total_loss = torch.stack([x["total_loss"] for x in outputs]).mean()
+        avg_dice_loss = torch.stack([x["dice_loss"] for x in outputs]).mean()
+        avg_ce_loss = torch.stack([x["ce_loss"] for x in outputs]).mean()
+        avg_iou = torch.stack([x["iou"] for x in outputs]).mean()
 
-        # per image IoU means that we first calculate IoU score for each image
-        # and then compute mean over these scores
-        per_image_iou = smp.metrics.iou_score(
-            tp, fp, fn, tn, reduction="micro-imagewise"
+        self.log_dict(
+            {
+                f"{stage}/avg_total_loss": avg_total_loss,
+                f"{stage}/avg_dice_loss": avg_dice_loss,
+                f"{stage}/avg_ce_loss": avg_ce_loss,
+                f"{stage}/avg_iou": avg_iou,
+            }
         )
-
-        metrics = { f"{stage}_mean_image_iou": per_image_iou }
-
-        self.log_dict(metrics, prog_bar=True)
-
-        if stage == "test":
-            if per_image_iou > self.test_best_avg_iou:
-                self.test_best_avg_iou = per_image_iou
 
     def training_step(self, batch, batch_idx):
         train_loss_info = self.shared_step(batch, "train")
         # append the metics of each step to the
         self.training_step_outputs.append(train_loss_info)
-        return train_loss_info
+        return train_loss_info["total_loss"]
 
     def on_train_epoch_end(self):
         self.shared_epoch_end(self.training_step_outputs, "train")
         # empty set output list
         self.training_step_outputs.clear()
         return
-    
+
     def on_train_end(self):
         self.loggers[0].log_metrics({"test/best_avg_iou": self.test_best_avg_iou})
         return
