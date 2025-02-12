@@ -8,6 +8,7 @@ import wandb
 from pytorch_lightning.loggers import WandbLogger
 from src.data import Endovis17BinaryDataset
 from src.modules import InstrumentsUNetModel
+from src.inference import create_inference_video
 
 app = typer.Typer()
 
@@ -87,7 +88,7 @@ def main(
     )
 
     trainer = pl.Trainer(
-        max_epochs=epochs,
+        max_epochs=1,
         log_every_n_steps=1,
         callbacks=[checkpoint_callback],
         logger=wandb_logger,
@@ -102,6 +103,28 @@ def main(
 
     print("Best model path: ", checkpoint_callback.best_model_path)
     wandb.save(checkpoint_callback.best_model_path)
+
+    best_model = InstrumentsUNetModel(
+        encoder_name=encoder_name, in_channels=in_channels, out_classes=out_classes
+    )
+    best_model.load_state_dict(
+        torch.load(checkpoint_callback.best_model_path)["state_dict"]
+    )
+
+    # create inference video
+    video_path = create_inference_video(
+        model=best_model.cuda(),
+        video_name="instrument_dataset_10",
+        video_frames_dir=data_dir / "frames" / "test" / "instrument_dataset_10",
+        video_masks_dir=data_dir
+        / "masks"
+        / "test"
+        / "binary_masks"
+        / "instrument_dataset_10",
+    )
+
+    print(f"Video saved at: {video_path}")
+
     wandb.finish()
 
 

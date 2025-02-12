@@ -64,3 +64,37 @@ class Endovis17BinaryDataset(Dataset):
                 mask.unsqueeze(dim=0), size=self.target_size, mode="nearest"
             ).squeeze(dim=0)
         return frame, mask
+
+
+class VideoReader(Dataset):
+    def __init__(
+        self,
+        frames_dir: Path,
+        masks_dir: Path,
+    ):
+        # collecting the frame files
+        # check that dir exist
+        assert frames_dir.exists(), f"Directory {dir} does not exist"
+        self.frame_file_names = [file.absolute() for file in frames_dir.iterdir()]
+        # collecting the mask files
+        # check that dir exist
+        assert masks_dir.exists(), f"Directory {dir} does not exist"
+        self.mask_file_names = [file.absolute() for file in masks_dir.iterdir()]
+        # check that the number of frames and masks is the same
+        assert len(self.frame_file_names) == len(
+            self.mask_file_names
+        ), "Number of frames and masks is not the same"
+
+        self.to_tensor = v2.ToDtype(torch.float32, scale=True)
+
+    def __len__(self):
+        return len(self.frame_file_names)
+
+    def __getitem__(self, idx):
+        frame_path = self.frame_file_names[idx]
+        mask_path = self.mask_file_names[idx]
+        frame = torchvision.io.read_image(frame_path)
+        mask = torchvision.io.read_image(mask_path)
+        frame = self.to_tensor(frame)
+        mask = mask.to(torch.float32)
+        return frame, mask
