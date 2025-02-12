@@ -5,6 +5,8 @@ import torch
 from .data import VideoReader
 import cv2
 from tqdm import tqdm
+from torchmetrics.classification import BinaryJaccardIndex
+from torchmetrics.aggregation import MeanMetric
 
 
 def color_map(pred_mask: np.ndarray, gt_mask: np.ndarray):
@@ -91,6 +93,9 @@ def create_inference_video(
     )
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, num_workers=4)
 
+    iou_metric = BinaryJaccardIndex().to("cuda")
+    mean_iou = MeanMetric().to("cuda")
+
     model.eval()
     video_frames = {}
     with torch.inference_mode():
@@ -100,10 +105,14 @@ def create_inference_video(
             desc=f"Inference on {video_name}",
         ):
             frame = frame.to("cuda")
-            mask = mask
+            mask = mask.to("cuda")
             pred_mask = model(frame)
             pred_mask = torch.sigmoid(pred_mask)
             pred_mask = pred_mask > 0.5
+
+            iou = iou_metric(pred_mask, mask)
+            mean_iou.update(iou)
+
             pred_mask = pred_mask.squeeze(dim=0).cpu().numpy().astype(np.uint8)
             frame = frame.squeeze(dim=0).cpu().permute(1, 2, 0).numpy()
             mask = mask.squeeze(dim=0).cpu().numpy().astype(np.uint8)
@@ -111,5 +120,6 @@ def create_inference_video(
             frame = (frame * 255).clip(0, 255).astype(np.uint8)
             video_frames[idx] = cv2.addWeighted(frame, 1, color_map_img, 0.5, 0)
 
+
     video_path = create_video_from_frames(video_frames, video_name)
-    return video_path
+    return video_path, mean_iou.compute().cpu().item()

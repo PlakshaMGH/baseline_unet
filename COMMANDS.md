@@ -1,7 +1,7 @@
 ## Training Commands
 
 ```bash
-python main.py --train-patients 5 --wandb-run-name "Patient_5"
+python main.py --train-patients 1 --wandb-run-name "Patient_1"
 ```
 
 ### EndoVis17 Bin Runs
@@ -18,3 +18,6 @@ rclone copy remote:right-lower-lobe/pa/masks ~/workspace/data/masks --progress -
 
 remote:right-lower-lobe/pa/frames
 remote:right-lower-lobe/pa/masks
+
+rclone copy remote:left-lower-lobe/pa/frames ~/workspace/lll_data/frames --progress --transfers 32
+rclone copy remote:left-lower-lobe/pa/masks ~/workspace/lll_data/masks --progress --transfers 32

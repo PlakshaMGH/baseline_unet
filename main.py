@@ -116,7 +116,7 @@ def main(
     # create inference video
     test_videos = [f"p{p:02d}" for p in test_patients]
     for video_name in test_videos:
-        video_path = create_inference_video(
+        video_path,_ = create_inference_video(
             model=best_model.cuda(),
             video_name=video_name,
             video_frames_dir=data_dir / "frames" / video_name,
