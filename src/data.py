@@ -55,7 +55,7 @@ class Endovis17BinaryDataset(Dataset):
         frame = torchvision.io.read_image(frame_path)
         mask = torchvision.io.read_image(mask_path)
         frame = self.to_tensor(frame)
-        mask = self.to_tensor(mask)
+        mask = mask.to(torch.float32)
         if self.target_size:
             frame = torch.nn.functional.interpolate(
                 frame.unsqueeze(dim=0), size=self.target_size, mode="bilinear"
