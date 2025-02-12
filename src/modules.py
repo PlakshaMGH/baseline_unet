@@ -2,6 +2,7 @@ import torch
 import pytorch_lightning as pl
 import segmentation_models_pytorch as smp
 from torchmetrics.classification import BinaryJaccardIndex
+from torchmetrics.aggregation import MeanMetric
 
 
 class InstrumentsUNetModel(pl.LightningModule):
@@ -29,6 +30,7 @@ class InstrumentsUNetModel(pl.LightningModule):
         self.test_step_outputs = []
 
         self.iou_metric = BinaryJaccardIndex()
+        self.val_mean_iou = MeanMetric()
 
         # freeze the encoder weights
         for param in self.model.encoder.parameters():
@@ -60,9 +62,7 @@ class InstrumentsUNetModel(pl.LightningModule):
         prob_mask = logits_mask.sigmoid()
         pred_mask = (prob_mask > 0.5).float()
 
-        iou = self.iou_metric(pred_mask.int(), mask)
-
-        self.log_dict({f"{stage}/loss": loss, f"{stage}/iou": iou}, prog_bar=True)
+        iou = self.iou_metric(pred_mask, mask)
 
         return {
             "total_loss": loss,
@@ -91,6 +91,15 @@ class InstrumentsUNetModel(pl.LightningModule):
         train_loss_info = self.shared_step(batch, "train")
         # append the metics of each step to the
         self.training_step_outputs.append(train_loss_info)
+
+        self.log_dict(
+            {
+                f"total_loss": train_loss_info["total_loss"],
+                f"iou": train_loss_info["iou"],
+            },
+            prog_bar=True,
+        )
+
         return train_loss_info["total_loss"]
 
     def on_train_epoch_end(self):
