@@ -112,18 +112,20 @@ def main(
     )
 
     # create inference video
-    video_path = create_inference_video(
-        model=best_model.cuda(),
-        video_name="instrument_dataset_10",
-        video_frames_dir=data_dir / "frames" / "test" / "instrument_dataset_10",
-        video_masks_dir=data_dir
-        / "masks"
-        / "test"
-        / "binary_masks"
-        / "instrument_dataset_10",
-    )
-
-    print(f"Video saved at: {video_path}")
+    test_videos = ["instrument_dataset_09", "instrument_dataset_10"]
+    for video_name in test_videos:
+        video_path = create_inference_video(
+            model=best_model.cuda(),
+            video_name=video_name,
+            video_frames_dir=data_dir / "frames" / "test" / video_name,
+            video_masks_dir=data_dir
+            / "masks"
+            / "test"
+            / "binary_masks"
+            / video_name,
+        )
+        
+        wandb.log({f"{video_name}": wandb.Video(video_path,format="mp4")})
 
     wandb.finish()
 

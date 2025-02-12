@@ -92,7 +92,7 @@ def create_inference_video(
     model.eval()
     video_frames = {}
     with torch.inference_mode():
-        for idx, (frame, mask) in tqdm(enumerate(test_loader),total=len(test_loader), desc="Creating Inference Video"):
+        for idx, (frame, mask) in tqdm(enumerate(test_loader),total=len(test_loader), desc=f"Inference on {video_name}"):
             frame = frame.to("cuda")
             mask = mask
             pred_mask = model(frame)
