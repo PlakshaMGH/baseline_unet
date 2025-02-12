@@ -38,11 +38,6 @@ class RLLPABinaryDataset(Dataset):
             for file in mask_dir.iterdir()
         ]
 
-        # check that the number of frames and masks is the same
-        # assert len(self.frame_file_names) == len(
-        #     self.mask_file_names
-        # ), f"Number of frames({len(self.frame_file_names)}) and masks({len(self.mask_file_names)}) is not the same"
-
         self.to_tensor = v2.ToDtype(torch.float32, scale=True)
         self.target_size = target_size
 
