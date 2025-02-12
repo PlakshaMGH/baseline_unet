@@ -69,7 +69,7 @@ def main(
 
     # checkpoint callback
     checkpoint_callback = ModelCheckpoint(
-        monitor="test/avg_iou",
+        monitor="test_avg_iou",
         mode="max",
         save_weights_only=True,
         save_top_k=1,

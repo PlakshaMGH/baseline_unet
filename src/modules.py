@@ -53,22 +53,25 @@ class InstrumentsUNetModel(pl.LightningModule):
         image = batch[0]
         mask = batch[1]
 
-        # Check that mask values in between 0 and 1, NOT 0 and 255 for binary segmentation
-        assert mask.max() <= 1.0 and mask.min() >= 0
-
         logits_mask = self.forward(image)
 
         dice_loss = self.dice_loss_fn(logits_mask, mask)
         ce_loss = self.ce_loss_fn(logits_mask, mask)
         loss = dice_loss + ce_loss
 
-        # Lets compute metrics for some threshold
-        # first convert mask values to probabilities, then
-        # apply thresholding
         prob_mask = logits_mask.sigmoid()
         pred_mask = (prob_mask > 0.5).float()
 
         iou = self.iou_metric(pred_mask, mask)
+
+        self.log_dict(
+            {
+                f"{stage}/total_loss": loss,
+                f"{stage}/dice_loss": dice_loss,
+                f"{stage}/ce_loss": ce_loss,
+                f"{stage}/iou": iou,
+            },
+        )
 
         return {
             "total_loss": loss,
@@ -99,6 +102,8 @@ class InstrumentsUNetModel(pl.LightningModule):
         self.log_dict(
             {
                 f"total_loss": valid_loss_info["total_loss"],
+                f"dice_loss": valid_loss_info["dice_loss"],
+                f"ce_loss": valid_loss_info["dice_loss"],
                 f"test/avg_iou": self.val_mean_iou.compute(),
             },
             prog_bar=True,
@@ -108,39 +113,17 @@ class InstrumentsUNetModel(pl.LightningModule):
     def on_validation_epoch_start(self):
         # reset the mean iou metric
         self.val_mean_iou.reset()
-
-    def shared_epoch_end(self, outputs, stage):
-        # compute the average of the metrics
-        avg_total_loss = torch.stack([x["total_loss"] for x in outputs]).mean()
-        avg_dice_loss = torch.stack([x["dice_loss"] for x in outputs]).mean()
-        avg_ce_loss = torch.stack([x["ce_loss"] for x in outputs]).mean()
-        avg_iou = torch.stack([x["iou"] for x in outputs]).mean()
-
-        self.log_dict(
-            {
-                f"{stage}/avg_total_loss": avg_total_loss,
-                f"{stage}/avg_dice_loss": avg_dice_loss,
-                f"{stage}/avg_ce_loss": avg_ce_loss,
-                f"{stage}/avg_iou": avg_iou,
-            },
-        )
-
-        if stage == "test":
-            self.log("test/avg_iou", self.val_mean_iou.compute())
-
-
-    def on_train_epoch_end(self):
-        self.shared_epoch_end(self.training_step_outputs, "train")
-        self.training_step_outputs.clear()
         return
 
-
-
     def on_validation_epoch_end(self):
-        self.shared_epoch_end(self.validation_step_outputs, "test")
-        self.validation_step_outputs.clear()
+        avg_iou = self.val_mean_iou.compute()
+        self.log("test/avg_iou", avg_iou)
+        self.log("test_avg_iou", avg_iou)
+        if avg_iou > self.test_best_avg_iou:
+            self.test_best_avg_iou = avg_iou
         return
 
     def on_train_end(self):
         self.loggers[0].log_metrics({"test/best_avg_iou": self.test_best_avg_iou})
+        self.loggers[0].log_metrics({"test_best_avg_iou": self.test_best_avg_iou})
         return
