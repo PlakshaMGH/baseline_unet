@@ -100,7 +100,7 @@ class InstrumentsUNetModel(pl.LightningModule):
         return
     
     def on_train_end(self):
-        self.log(f"test/best_avg_iou", self.test_best_avg_iou)
+        self.loggers[0].log_metrics({"test/best_avg_iou": self.test_best_avg_iou})
         return
 
     def validation_step(self, batch, batch_idx):
