@@ -18,16 +18,10 @@ class InstrumentsUNetModel(pl.LightningModule):
         self.register_buffer("std", torch.tensor(params["std"]).view(1, 3, 1, 1))
         self.register_buffer("mean", torch.tensor(params["mean"]).view(1, 3, 1, 1))
 
-        # for image segmentation dice loss could be the best first choice
         self.dice_loss_fn = smp.losses.DiceLoss(
             smp.losses.BINARY_MODE, from_logits=True
         )
         self.ce_loss_fn = smp.losses.SoftBCEWithLogitsLoss()
-
-        # initialize step metics
-        self.training_step_outputs = []
-        self.validation_step_outputs = []
-        self.test_step_outputs = []
 
         self.iou_metric = BinaryJaccardIndex()
         self.val_mean_iou = MeanMetric()
@@ -99,7 +93,6 @@ class InstrumentsUNetModel(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         valid_loss_info = self.shared_step(batch, "test")
-        self.validation_step_outputs.append(valid_loss_info)
         self.val_mean_iou.update(valid_loss_info["iou"])
         self.log_dict(
             {
@@ -109,7 +102,9 @@ class InstrumentsUNetModel(pl.LightningModule):
             },
             prog_bar=False,
         )
-        self.log("test/avg_iou", self.val_mean_iou.compute(),prog_bar=True,logger=True)
+        self.log(
+            "test/avg_iou", self.val_mean_iou.compute(), prog_bar=True, logger=True
+        )
         return valid_loss_info
 
     def on_validation_epoch_start(self):
