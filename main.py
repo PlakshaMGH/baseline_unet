@@ -17,15 +17,17 @@ torch.manual_seed(42)
 torch.cuda.manual_seed(42)
 torch.cuda.manual_seed_all(42)
 
+
 def parse_train_patients(train_patients: str):
     """Convert a comma-separated string to a list of integers."""
     return [int(x) for x in train_patients.split(",")]
 
+
 @app.command()
 def main(
     train_patients: str = "1",  # Default train patients (modifiable via CLI, as comma-separated string)
-    wandb_project: str = "endovis17_model_training",  # Default WandB project name
-    wandb_run_name: str = "default_run",  # Default WandB run name
+    wandb_project: str = "DataVar_UNet_E17_Bin",  # Default WandB project name
+    wandb_run_name: str | None = None,
 ):
     """
     Train a model on the Endovis17 dataset and log results to WandB.
@@ -84,12 +86,11 @@ def main(
         out_classes=out_classes,
     )
 
-    # Initialize the PyTorch Lightning Trainer with the WandB logger
     trainer = pl.Trainer(
-        max_epochs=1,
+        max_epochs=epochs,
         log_every_n_steps=1,
         callbacks=[checkpoint_callback],
-        #logger=wandb_logger,  # Adding the WandB logger to the trainer
+        logger=wandb_logger,
     )
 
     # Start training
@@ -102,6 +103,7 @@ def main(
     print("Best model path: ", checkpoint_callback.best_model_path)
     wandb.save(checkpoint_callback.best_model_path)
     wandb.finish()
+
 
 if __name__ == "__main__":
     app()
