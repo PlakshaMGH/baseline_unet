@@ -11,10 +11,13 @@ class RLLPABinaryDataset(Dataset):
         root_data_dir: Path,
         patient_set: list[int],
         target_size=None,
+        test=False,
     ):
         # collecting the frame files
-        self.frames_dir = root_data_dir / "frames"
-        self.frame_dirs = [self.frames_dir / f"p{p:02d}" for p in patient_set]
+        self.frames_dir = root_data_dir / "frames" / ("test" if test else "train")
+        self.frame_dirs = [
+            self.frames_dir / f"instrument_dataset_{p:02d}" for p in patient_set
+        ]
         # check that all dirs exist
         for dir in self.frame_dirs:
             assert dir.exists(), f"Directory {dir} does not exist"
@@ -24,8 +27,10 @@ class RLLPABinaryDataset(Dataset):
             for file in frame_dir.iterdir()
         ]
         # collecting the mask files
-        self.masks_dir = root_data_dir / "masks"
-        self.mask_dirs = [self.masks_dir / f"p{p:02d}" for p in patient_set]
+        self.masks_dir = ( root_data_dir / "masks" / ("test" if test else "train") / "binary_masks")
+        self.mask_dirs = [
+            self.masks_dir / f"instrument_dataset_{p:02d}" for p in patient_set
+        ]
         # check that all dirs exist
         for dir in self.mask_dirs:
             assert dir.exists(), f"Directory {dir} does not exist"

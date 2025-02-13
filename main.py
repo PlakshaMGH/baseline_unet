@@ -44,15 +44,16 @@ def main(
     train_patients_list = parse_train_patients(train_patients)
 
     # Data directory and test patients are set as constants
-    data_dir = Path("../rll_data")
-    lll_data_dir = Path("../lll_data")
-    test_patients = [4, 10, 11, 13]
+    data_dir = Path("../data")
+    # lll_data_dir = Path("../lll_data")
+    test_patients = [9, 10]
 
     # Initialize datasets
     train_dataset = RLLPABinaryDataset(
-        data_dir, train_patients_list, target_size=(736, 896)
+        data_dir,
+        train_patients_list,
     )
-    test_dataset = RLLPABinaryDataset(data_dir, test_patients, target_size=(736, 896))
+    test_dataset = RLLPABinaryDataset(data_dir, test_patients, test=True)
 
     print(f"Train dataset size: {len(train_dataset)}")
     print(f"Test dataset size: {len(test_dataset)}")
@@ -67,7 +68,7 @@ def main(
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, num_workers=4, shuffle=True
     )
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=4)
+    test_loader = DataLoader(test_dataset, batch_size=1, num_workers=4)
 
     # Initialize WandB Logger
     wandb.init(project=wandb_project, name=wandb_run_name)
@@ -116,40 +117,23 @@ def main(
     )
 
     # create inference video
-    test_videos = [f"p{p:02d}" for p in test_patients]
+    test_videos = [f"instrument_dataset_{p:02d}" for p in test_patients]
     ious = []
     for video_name in test_videos:
-        video_path,iou = create_inference_video(
+        video_path, iou = create_inference_video(
             model=best_model.cuda(),
             video_name=video_name,
-            video_frames_dir=data_dir / "frames" / video_name,
-            video_masks_dir=data_dir / "masks" / video_name,
+            video_frames_dir=data_dir / "frames" / "test" / video_name,
+            video_masks_dir=data_dir / "masks" / "test" / "binary_masks" / video_name,
         )
 
         ious.append(iou)
 
         wandb.log({f"rll_{video_name}": wandb.Video(video_path, format="mp4")})
         wandb.log({f"test/rll_{video_name}_mIoU": iou})
-    
+
     wandb.log({"test/rll_avg_iou": np.mean(ious)})
 
-    ## lll inference
-    test_videos = [f"p{p:02d}" for p in [1,3,6,7,9,10]]
-    ious = []
-    for video_name in test_videos:
-        video_path,iou = create_inference_video(
-            model=best_model.cuda(),
-            video_name=video_name,
-            video_frames_dir=lll_data_dir / "frames" / video_name,
-            video_masks_dir=lll_data_dir / "masks" / video_name,
-        )
-
-        ious.append(iou)
-
-        wandb.log({f"lll_{video_name}": wandb.Video(video_path, format="mp4")})
-        wandb.log({f"test/lll_{video_name}_mIoU": iou})
-    
-    wandb.log({"test/lll_avg_iou": np.mean(ious)})
     wandb.finish()
 
 
