@@ -53,6 +53,7 @@ def create_video_from_frames(video_frames, video_name):
         "s": f"{size2}x{size1}",
         "c:v": "h264_nvenc",
         "preset": "fast",
+        "loglevel": "error",
     }
 
     process = (
@@ -94,7 +95,7 @@ def create_inference_video(
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, num_workers=4)
 
     iou_metric = BinaryJaccardIndex().to("cuda")
-    mean_iou = MeanMetric().to("cuda")
+    ious = []
 
     model.eval()
     video_frames = {}
@@ -111,7 +112,7 @@ def create_inference_video(
             pred_mask = pred_mask > 0.5
 
             iou = iou_metric(pred_mask, mask)
-            mean_iou.update(iou)
+            ious.append(iou.item())
 
             pred_mask = pred_mask.squeeze(dim=0).cpu().numpy().astype(np.uint8)
             frame = frame.squeeze(dim=0).cpu().permute(1, 2, 0).numpy()
@@ -122,4 +123,4 @@ def create_inference_video(
 
 
     video_path = create_video_from_frames(video_frames, video_name)
-    return video_path, mean_iou.compute().cpu().item()
+    return video_path, np.mean(ious)

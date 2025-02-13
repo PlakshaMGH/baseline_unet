@@ -41,9 +41,9 @@ def main(
     out_classes = 1
 
     # Initialize WandB Logger
-    wandb.init(project=wandb_project, name=wandb_run_name,id="pex98apt")
+    wandb.init(project=wandb_project, name=wandb_run_name,id="1ai2rspk",resume="must",mode="online")
 
-    model_path = "saves/best-model-epoch=01-test_avg_iou=0.13.ckpt"
+    model_path = "saves/best-model-epoch=03-test_avg_iou=0.15.ckpt"
 
     best_model = InstrumentsUNetModel(
         encoder_name=encoder_name, in_channels=in_channels, out_classes=out_classes

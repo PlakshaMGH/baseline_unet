@@ -2,7 +2,8 @@ import torch
 import pytorch_lightning as pl
 import segmentation_models_pytorch as smp
 from torchmetrics.classification import BinaryJaccardIndex
-from torchmetrics.aggregation import MeanMetric
+
+# from torchmetrics.aggregation import MeanMetric
 
 
 class InstrumentsUNetModel(pl.LightningModule):
@@ -24,7 +25,7 @@ class InstrumentsUNetModel(pl.LightningModule):
         self.ce_loss_fn = smp.losses.SoftBCEWithLogitsLoss()
 
         self.iou_metric = BinaryJaccardIndex()
-        self.val_mean_iou = MeanMetric()
+        self.val_ious = []
 
         # freeze the encoder weights
         for param in self.model.encoder.parameters():
@@ -92,27 +93,15 @@ class InstrumentsUNetModel(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         valid_loss_info = self.shared_step(batch, "test")
-        self.val_mean_iou.update(valid_loss_info["iou"])
-        self.log_dict(
-            {
-                f"total_loss": valid_loss_info["total_loss"],
-                f"dice_loss": valid_loss_info["dice_loss"],
-                f"ce_loss": valid_loss_info["dice_loss"],
-            },
-            prog_bar=False,
-        )
-        self.log(
-            "test/avg_iou", self.val_mean_iou.compute(), prog_bar=True, logger=True
-        )
+        self.val_ious.append(valid_loss_info["iou"])
         return valid_loss_info
 
     def on_validation_epoch_start(self):
-        # reset the mean iou metric
-        self.val_mean_iou.reset()
+        self.val_ious = []
         return
 
     def on_validation_epoch_end(self):
-        avg_iou = self.val_mean_iou.compute()
+        avg_iou = torch.stack(self.val_ious).mean().item()
         self.log("test/avg_iou", avg_iou)
         self.log("test_avg_iou", avg_iou)
         if avg_iou > self.test_best_avg_iou:
