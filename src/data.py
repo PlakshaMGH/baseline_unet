@@ -79,6 +79,11 @@ class VideoReader(Dataset):
         assert masks_dir.exists(), f"Directory {dir} does not exist"
         self.mask_file_names = [file.absolute() for file in masks_dir.iterdir()]
 
+
+        # sort the frames and mask names based on the number ie 'frame000.png' before the extension
+        self.frame_file_names.sort(key=lambda x: int(x.stem[5:8]))
+        self.mask_file_names.sort(key=lambda x: int(x.stem[5:8]))
+
         self.to_tensor = v2.ToDtype(torch.float32, scale=True)
         self.target_size = target_size
 

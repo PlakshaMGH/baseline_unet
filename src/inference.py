@@ -85,12 +85,13 @@ def create_inference_video(
     video_frames_dir: Path,
     video_masks_dir: Path,
     save_dir=Path("./saved_videos"),
+    mask_only=False,
 ):
     save_dir.mkdir(parents=True, exist_ok=True)
     video_path = save_dir / f"{video_name}.mp4"
 
     test_dataset = VideoReader(
-        video_frames_dir, video_masks_dir, target_size=(736, 896)
+        video_frames_dir, video_masks_dir#, target_size=(736, 896)
     )
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, num_workers=4)
 
@@ -117,10 +118,16 @@ def create_inference_video(
             pred_mask = pred_mask.squeeze(dim=0).cpu().numpy().astype(np.uint8)
             frame = frame.squeeze(dim=0).cpu().permute(1, 2, 0).numpy()
             mask = mask.squeeze(dim=0).cpu().numpy().astype(np.uint8)
-            color_map_img = color_map(pred_mask, mask)
-            frame = (frame * 255).clip(0, 255).astype(np.uint8)
-            video_frames[idx] = cv2.addWeighted(frame, 1, color_map_img, 0.5, 0)
-
+            if not mask_only:
+                color_map_img = color_map(pred_mask, mask)
+                frame = (frame * 255).clip(0, 255).astype(np.uint8)
+                video_frames[idx] = cv2.addWeighted(frame, 1, color_map_img, 0.5, 0)
+            else:
+                # convert the predicted mask to a hw3 image
+                pred_mask = np.repeat(pred_mask, 3, axis=0)
+                pred_mask = np.transpose(pred_mask, (1, 2, 0))
+                pred_mask = (pred_mask * 255).clip(0, 255).astype(np.uint8)
+                video_frames[idx] = pred_mask
 
     video_path = create_video_from_frames(video_frames, video_name)
     return video_path, np.mean(ious)

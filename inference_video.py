@@ -37,6 +37,7 @@ def main():
         video_name=video_name,
         video_frames_dir=data_dir / "frames/test" / video_name,
         video_masks_dir=data_dir / "masks/test/binary_masks" / video_name,
+        mask_only=True,
     )
 
     print(f"Video saved at: {video_path}")
