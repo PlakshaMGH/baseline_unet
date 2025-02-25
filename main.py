@@ -6,7 +6,7 @@ from pathlib import Path
 import typer
 import wandb
 from pytorch_lightning.loggers import WandbLogger
-from src.data import RLLPABinaryDataset
+from src.data import Endo18BinaryDataset
 from src.modules import InstrumentsUNetModel
 from src.inference import create_inference_video
 import numpy as np
@@ -27,8 +27,8 @@ def parse_train_patients(train_patients: str):
 
 @app.command()
 def main(
-    train_patients: str = "1",  # Default train patients (modifiable via CLI, as comma-separated string)
-    wandb_project: str = "DataVar_UNet_RLL_PA_Bin",  # Default WandB project name
+    train_patients: str = "1,2,6,7,10,11",  # Default train patients (modifiable via CLI, as comma-separated string)
+    wandb_project: str = "DataVar_UNet_E18_Bin",  # Default WandB project name
     wandb_run_name: str | None = None,
 ):
     """
@@ -44,16 +44,16 @@ def main(
     train_patients_list = parse_train_patients(train_patients)
 
     # Data directory and test patients are set as constants
-    data_dir = Path("../data")
+    data_dir = Path("../endo18_data")
     # lll_data_dir = Path("../lll_data")
-    test_patients = [9, 10]
+    test_patients = [19, 18]
 
     # Initialize datasets
-    train_dataset = RLLPABinaryDataset(
+    train_dataset = Endo18BinaryDataset(
         data_dir,
         train_patients_list,
     )
-    test_dataset = RLLPABinaryDataset(data_dir, test_patients, test=True)
+    test_dataset = Endo18BinaryDataset(data_dir, test_patients, test=True)
 
     print(f"Train dataset size: {len(train_dataset)}")
     print(f"Test dataset size: {len(test_dataset)}")
@@ -117,22 +117,20 @@ def main(
     )
 
     # create inference video
-    test_videos = [f"instrument_dataset_{p:02d}" for p in test_patients]
+    test_videos = [f"seq_{p:02d}" for p in test_patients]
     ious = []
     for video_name in test_videos:
         video_path, iou = create_inference_video(
             model=best_model.cuda(),
             video_name=video_name,
             video_frames_dir=data_dir / "frames" / "test" / video_name,
-            video_masks_dir=data_dir / "masks" / "test" / "binary_masks" / video_name,
+            video_masks_dir=data_dir / "masks" / "binary_masks" / "test" / video_name,
         )
 
         ious.append(iou)
 
-        wandb.log({f"rll_{video_name}": wandb.Video(video_path, format="mp4")})
-        wandb.log({f"test/rll_{video_name}_mIoU": iou})
-
-    wandb.log({"test/rll_avg_iou": np.mean(ious)})
+        wandb.log({f"{video_name}": wandb.Video(video_path, format="mp4")})
+        wandb.log({f"test/{video_name}_mIoU": iou})
 
     wandb.finish()
 
