@@ -17,13 +17,13 @@ torch.cuda.manual_seed_all(42)
 def main():
 
     # Data directory and test patients are set as constants
-    data_dir = Path("../endo18_data")
+    data_dir = Path("../lll_data")
 
     encoder_name = "resnet34"
     in_channels = 3
     out_classes = 1
 
-    model_path = "../comp_images/models/unet_e18_bin.ckpt"
+    model_path = "../comp_images/models/unet_lll_pa_bin.ckpt"
 
     best_model = InstrumentsUNetModel(
         encoder_name=encoder_name, in_channels=in_channels, out_classes=out_classes
@@ -31,13 +31,14 @@ def main():
     best_model.load_state_dict(torch.load(model_path)["state_dict"])
 
     # create inference video
-    video_name = "seq_19"
+    video_name = "p10"
     video_path, iou = create_inference_video(
         model=best_model.cuda(),
         video_name=video_name,
-        video_frames_dir=data_dir / "frames/test" / video_name,
-        video_masks_dir=data_dir / "masks/binary_masks/test" / video_name,
+        video_frames_dir=data_dir / "frames" / video_name,
+        video_masks_dir=data_dir / "masks" / video_name,
         mask_only=True,
+        target_size=(736, 896),
     )
 
     print(f"Video saved at: {video_path}")
