@@ -11,12 +11,11 @@ class RLLPABinaryDataset(Dataset):
         root_data_dir: Path,
         patient_set: list[int],
         target_size=None,
-        test=False,
     ):
         # collecting the frame files
-        self.frames_dir = root_data_dir / "frames" / ("test" if test else "train")
+        self.frames_dir = root_data_dir / "frames"  
         self.frame_dirs = [
-            self.frames_dir / f"instrument_dataset_{p:02d}" for p in patient_set
+            self.frames_dir / f"p{p:02d}" for p in patient_set
         ]
         # check that all dirs exist
         for dir in self.frame_dirs:
@@ -28,10 +27,10 @@ class RLLPABinaryDataset(Dataset):
         ]
         # collecting the mask files
         self.masks_dir = (
-            root_data_dir / "masks" / ("test" if test else "train") / "binary_masks"
+            root_data_dir / "masks"  
         )
         self.mask_dirs = [
-            self.masks_dir / f"instrument_dataset_{p:02d}" for p in patient_set
+            self.masks_dir / f"p{p:02d}" for p in patient_set
         ]
         # check that all dirs exist
         for dir in self.mask_dirs:
@@ -138,8 +137,8 @@ class VideoReader(Dataset):
         self.mask_file_names = [file.absolute() for file in masks_dir.iterdir()]
 
         # sort the frames and mask names based on the number ie 'frame000.png' before the extension
-        self.frame_file_names.sort(key=lambda x: int(x.stem[5:8]))
-        self.mask_file_names.sort(key=lambda x: int(x.stem[5:8]))
+        self.frame_file_names.sort()
+        self.mask_file_names.sort()
 
         self.to_tensor = v2.ToDtype(torch.float32, scale=True)
         self.target_size = target_size

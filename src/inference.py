@@ -86,12 +86,13 @@ def create_inference_video(
     video_masks_dir: Path,
     save_dir=Path("./saved_videos"),
     mask_only=False,
+    target_size=None,
 ):
     save_dir.mkdir(parents=True, exist_ok=True)
     video_path = save_dir / f"{video_name}.mp4"
 
     test_dataset = VideoReader(
-        video_frames_dir, video_masks_dir#, target_size=(736, 896)
+        video_frames_dir, video_masks_dir, target_size=target_size
     )
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, num_workers=4)
 
